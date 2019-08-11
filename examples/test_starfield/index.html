@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<title>three.js webgl - buffer geometry constructed from geometry</title>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	<link type="text/css" rel="stylesheet" href="../main.css">
+	<style>
+		a {
+			color: #08f;
+		}
+	</style>
+	<script src="./js/config.js"></script>
+</head>
+
+<body>
+	<div id="info">
+		<a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - buffergeometry constructed from
+		geometry<br />
+		by <a target="_blank" href="http://callum.com">Callum Prentice</a>
+	</div>
+
+	<script type="x-shader/x-vertex" id="vertexshader">
+		attribute float size;
+		attribute vec3 customColor;
+		varying vec3 vColor;
+		void main() {
+			vColor = customColor;
+			vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+			gl_PointSize = size * ( 300.0 / -mvPosition.z );
+			gl_Position = projectionMatrix * mvPosition;
+		}
+	</script>
+
+	<script type="x-shader/x-fragment" id="fragmentshader">
+		uniform vec3 color;
+		uniform sampler2D pointTexture;
+		varying vec3 vColor;
+		void main() {
+			gl_FragColor = vec4( color * vColor, 1.0 );
+			gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+		}
+	</script>
+
+	<script type="module">
+
+		import * as THREE from '../../build/three.module.js';
+
+		import Stats from '../jsm/libs/stats.module.js';
+
+		import { TrackballControls } from '../jsm/controls/TrackballControls.js';
+
+		var camera, scene, renderer, controls, stats;
+
+		var jsonData;
+		var geomNodes, geomLinks;
+		var moveSteps = 50, currentSteps = 0;
+
+		init();
+		animate();
+
+		function init() {
+
+			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer.setPixelRatio(window.devicePixelRatio);
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			document.body.appendChild(renderer.domElement);
+
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera(45.0, window.innerWidth / window.innerHeight, 1, 1500.0);
+			camera.position.z = 480.0;
+			scene.add(camera);
+
+			controls = new TrackballControls(camera, renderer.domElement);
+			controls.minDistance = 100.0;
+			controls.maxDistance = 800.0;
+			controls.dynamicDampingFactor = 0.1;
+
+			scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+
+			var light = new THREE.PointLight(0xffffff, 0.7);
+			camera.add(light);
+
+			createScene();
+
+			stats = new Stats();
+			document.body.appendChild(stats.dom);
+
+			window.addEventListener('resize', onWindowResize, false);
+
+		}
+
+		function createScene() {
+			fetch('./datasets/blocks.json').then(r => {
+				return r.json();
+			}).then(json => {
+				jsonData = json;
+				createNodes();
+				createLinks();
+			});
+		}
+
+		// 创建边
+		function createLinks() {
+			var amount = jsonData.links.length;
+			var vertex = new THREE.Vector3(0, 0, 0);
+			var positions = new Float32Array(amount * 2 * 3);
+			for (let i = 0; i < amount; i++) {
+				// let link = jsonData.links[i];
+				// let source = jsonData.nodes[link.source];
+				// let target = jsonData.nodes[link.target];
+				// vertex.x = source.x;
+				// vertex.y = source.y;
+				// vertex.z = source.z;
+				vertex.toArray(positions, i * 2 * 3);
+				// vertex.x = target.x;
+				// vertex.y = target.y;
+				// vertex.z = target.z;
+				vertex.toArray(positions, i * 2 * 3 + 3);
+			}
+			var geometry = new THREE.BufferGeometry();
+			geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
+			let mat = new THREE.LineBasicMaterial({ color: 0x333333 });
+			geomLinks = new THREE.LineSegments(geometry, mat);
+			scene.add(geomLinks);
+		}
+
+		// 创建节点
+		function createNodes() {
+			var amount = jsonData.nodes.length;
+			var positions = new Float32Array(amount * 3);
+			var colors = new Float32Array(amount * 3);
+			var sizes = new Float32Array(amount);
+			var vertex = new THREE.Vector3();
+			var color = new THREE.Color(0xffffff);
+			for (let i = 0; i < amount; i++) {
+				let node = jsonData.nodes[i];
+				vertex.x = 0;//node.x;
+				vertex.y = 0;//node.y;
+				vertex.z = 0;//node.z;
+				vertex.toArray(positions, i * 3);
+				color.setStyle(getNodeColor(node.type));// color.setHSL(0, 0.7, 0.5);
+				color.toArray(colors, i * 3);
+				sizes[i] = 30;
+			}
+			var geometry = new THREE.BufferGeometry();
+			geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
+			geometry.addAttribute('customColor', new THREE.BufferAttribute(colors, 3));
+			geometry.addAttribute('size', new THREE.BufferAttribute(sizes, 1));
+			var material = new THREE.ShaderMaterial({
+				uniforms: {
+					color: { value: new THREE.Color(0xffffff) },
+					pointTexture: { value: new THREE.TextureLoader().load("../textures/lensflare/lensflare0.png") }
+				},
+				vertexShader: document.getElementById('vertexshader').textContent,
+				fragmentShader: document.getElementById('fragmentshader').textContent,
+				blending: THREE.AdditiveBlending,
+				depthTest: false,
+				transparent: true
+			});
+			geomNodes = new THREE.Points(geometry, material);
+			scene.add(geomNodes);
+		}
+
+		// 获取节点颜色
+		function getNodeColor(type) {
+			let flt = g_Filters.find(f => f.value == type);
+			return flt ? flt.bgColor : 'rgb(255, 255, 255)';
+		}
+
+		// 移动节点
+		function moveNodes() {
+			if (currentSteps >= moveSteps || !geomNodes) return;
+			currentSteps++;
+			// 更新点坐标
+			var attrNodes = geomNodes.geometry.attributes;
+			for (let i = 0; i < jsonData.nodes.length; i++) {
+				let node = jsonData.nodes[i];
+				attrNodes.position.array[i * 3] = node.x * currentSteps / moveSteps;
+				attrNodes.position.array[i * 3 + 1] = node.y * currentSteps / moveSteps;
+				attrNodes.position.array[i * 3 + 2] = node.z * currentSteps / moveSteps;
+			}
+			attrNodes.position.needsUpdate = true;
+			// 更新边坐标
+			var attrLinks = geomLinks.geometry.attributes;
+			for (let i = 0; i < jsonData.links.length; i++) {
+				let link = jsonData.links[i];
+				let j = link.source;
+				attrLinks.position.array[i * 2 * 3] = attrNodes.position.array[j * 3];
+				attrLinks.position.array[i * 2 * 3 + 1] = attrNodes.position.array[j * 3 + 1];
+				attrLinks.position.array[i * 2 * 3 + 2] = attrNodes.position.array[j * 3 + 2];
+				let k = link.target;
+				attrLinks.position.array[i * 2 * 3 + 3] = attrNodes.position.array[k * 3];
+				attrLinks.position.array[i * 2 * 3 + 4] = attrNodes.position.array[k * 3 + 1];
+				attrLinks.position.array[i * 2 * 3 + 5] = attrNodes.position.array[k * 3 + 2];
+			}
+			attrLinks.position.needsUpdate = true;
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+		}
+
+		function animate() {
+
+			requestAnimationFrame(animate);
+
+			controls.update();
+			stats.update();
+
+			moveNodes();
+
+			renderer.render(scene, camera);
+
+		}
+
+	</script>
+</body>
+
+</html>
