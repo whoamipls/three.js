@@ -102,9 +102,39 @@
 			document.addEventListener('mouseup', onDocumentMouseUp, false);
 		}
 
+		// 飞行
+		function flyTo(x, y, z) {
+			const duration = 3000;
+			const distance = 100;
+			const distRatio = 1 + distance / Math.hypot(x, y, z);
+			const finalPos = { x: x * distRatio, y: y * distRatio, z: z * distRatio };
+			const camPos = Object.assign({}, camera.position);
+			new TWEEN.Tween(camPos)
+				.to(finalPos, duration)
+				.easing(TWEEN.Easing.Quadratic.Out)
+				.onUpdate((pos) => {
+					const { x, y, z } = pos;
+					if (x !== undefined) camera.position.x = x;
+					if (y !== undefined) camera.position.y = y;
+					if (z !== undefined) camera.position.z = z;
+				})
+				.start();
+
+			// camera.lookAt(new Three.Vector3(x, y, z));
+			// const camLookAt = getLookAt();
+			// const finalLookAt = new three.Vector3(x, y, z);
+			// Face direction in 1/3rd of time
+			// new TWEEN.Tween(camLookAt)
+			// 	.to(finalLookAt, duration / 3)
+			// 	.easing(TWEEN.Easing.Quadratic.Out)
+			// 	.onUpdate((pos) => {
+			// 		camera.lookAt(pos);
+			// 	})
+			// 	.start();
+		}
+
 		// 鼠标拾取
 		function onDocumentMouseUp(event) {
-			// console.log(event.x, event.y);
 			if (!geomNodes) return;
 			event.preventDefault();
 			mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -112,10 +142,18 @@
 			raycaster.setFromCamera(mouse, camera);
 			var intersects = raycaster.intersectObject(geomNodes, false);
 			if (intersects.length > 0) {
-				console.log(intersects[0].index);
-			} else {
-				console.log('none')
+				let i = intersects[0].index;
+				var nodePos = geomNodes.geometry.attributes.position;
+				flyTo(nodePos.array[i], nodePos.array[i + 1], nodePos.array[i + 2]);
 			}
+		}
+
+		function getLookAt() {
+			return Object.assign(
+				(new three.Vector3(0, 0, -1000))
+					.applyQuaternion(camera.quaternion)
+					.add(camera.position)
+			);
 		}
 
 		// 创建场景
@@ -233,12 +271,13 @@
 			renderer.setSize(window.innerWidth, window.innerHeight);
 		}
 
-		function animate() {
+		function animate(time) {
 			requestAnimationFrame(animate);
 			controls.update();
 			stats.update();
 
 			moveNodes();
+			TWEEN.update(time);
 
 			renderer.render(scene, camera);
 		}
