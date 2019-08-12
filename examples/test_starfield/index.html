@@ -7,11 +7,19 @@
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<link type="text/css" rel="stylesheet" href="../main.css">
 	<style>
+		html,
+		body {
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+		}
+
 		a {
 			color: #08f;
 		}
 	</style>
 	<script src="./js/config.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/17.1.1/Tween.min.js"></script>
 </head>
 
 <body>
@@ -44,24 +52,22 @@
 	</script>
 
 	<script type="module">
-
 		import * as THREE from '../../build/three.module.js';
-
 		import Stats from '../jsm/libs/stats.module.js';
-
 		import { TrackballControls } from '../jsm/controls/TrackballControls.js';
 
 		var camera, scene, renderer, controls, stats;
+		var mouse, raycaster;
 
 		var jsonData;
 		var geomNodes, geomLinks;
-		var moveSteps = 50, currentSteps = 0;
+		var moveSteps = 80, currentSteps = 0;
 
 		init();
 		animate();
 
+		// 初始化
 		function init() {
-
 			renderer = new THREE.WebGLRenderer({ antialias: true });
 			renderer.setPixelRatio(window.devicePixelRatio);
 			renderer.setSize(window.innerWidth, window.innerHeight);
@@ -90,8 +96,29 @@
 
 			window.addEventListener('resize', onWindowResize, false);
 
+			mouse = new THREE.Vector2();
+			raycaster = new THREE.Raycaster();
+			// document.addEventListener('mousemove', onDocumentMouseUp, false);
+			document.addEventListener('mouseup', onDocumentMouseUp, false);
 		}
 
+		// 鼠标拾取
+		function onDocumentMouseUp(event) {
+			// console.log(event.x, event.y);
+			if (!geomNodes) return;
+			event.preventDefault();
+			mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+			mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+			raycaster.setFromCamera(mouse, camera);
+			var intersects = raycaster.intersectObject(geomNodes, false);
+			if (intersects.length > 0) {
+				console.log(intersects[0].index);
+			} else {
+				console.log('none')
+			}
+		}
+
+		// 创建场景
 		function createScene() {
 			fetch('./datasets/blocks.json').then(r => {
 				return r.json();
@@ -143,9 +170,9 @@
 				vertex.toArray(positions, i * 3);
 				color.setStyle(getNodeColor(node.type));// color.setHSL(0, 0.7, 0.5);
 				color.toArray(colors, i * 3);
-				sizes[i] = 30;
+				sizes[i] = 35;
 			}
-			var geometry = new THREE.BufferGeometry();
+			var geometry = new THREE.BufferGeometry();// geometry.dynamic = true;
 			geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
 			geometry.addAttribute('customColor', new THREE.BufferAttribute(colors, 3));
 			geometry.addAttribute('size', new THREE.BufferAttribute(sizes, 1));
@@ -175,28 +202,29 @@
 			if (currentSteps >= moveSteps || !geomNodes) return;
 			currentSteps++;
 			// 更新点坐标
-			var attrNodes = geomNodes.geometry.attributes;
+			var nodePos = geomNodes.geometry.attributes.position;
 			for (let i = 0; i < jsonData.nodes.length; i++) {
 				let node = jsonData.nodes[i];
-				attrNodes.position.array[i * 3] = node.x * currentSteps / moveSteps;
-				attrNodes.position.array[i * 3 + 1] = node.y * currentSteps / moveSteps;
-				attrNodes.position.array[i * 3 + 2] = node.z * currentSteps / moveSteps;
+				nodePos.array[i * 3] = node.x * currentSteps / moveSteps;
+				nodePos.array[i * 3 + 1] = node.y * currentSteps / moveSteps;
+				nodePos.array[i * 3 + 2] = node.z * currentSteps / moveSteps;
 			}
-			attrNodes.position.needsUpdate = true;
+			nodePos.needsUpdate = true;
+			geomNodes.geometry.computeBoundingSphere();// 不加这句修改位置后射线查不到
 			// 更新边坐标
-			var attrLinks = geomLinks.geometry.attributes;
+			var linkPos = geomLinks.geometry.attributes.position;
 			for (let i = 0; i < jsonData.links.length; i++) {
 				let link = jsonData.links[i];
 				let j = link.source;
-				attrLinks.position.array[i * 2 * 3] = attrNodes.position.array[j * 3];
-				attrLinks.position.array[i * 2 * 3 + 1] = attrNodes.position.array[j * 3 + 1];
-				attrLinks.position.array[i * 2 * 3 + 2] = attrNodes.position.array[j * 3 + 2];
+				linkPos.array[i * 2 * 3] = nodePos.array[j * 3];
+				linkPos.array[i * 2 * 3 + 1] = nodePos.array[j * 3 + 1];
+				linkPos.array[i * 2 * 3 + 2] = nodePos.array[j * 3 + 2];
 				let k = link.target;
-				attrLinks.position.array[i * 2 * 3 + 3] = attrNodes.position.array[k * 3];
-				attrLinks.position.array[i * 2 * 3 + 4] = attrNodes.position.array[k * 3 + 1];
-				attrLinks.position.array[i * 2 * 3 + 5] = attrNodes.position.array[k * 3 + 2];
+				linkPos.array[i * 2 * 3 + 3] = nodePos.array[k * 3];
+				linkPos.array[i * 2 * 3 + 4] = nodePos.array[k * 3 + 1];
+				linkPos.array[i * 2 * 3 + 5] = nodePos.array[k * 3 + 2];
 			}
-			attrLinks.position.needsUpdate = true;
+			linkPos.needsUpdate = true;
 		}
 
 		function onWindowResize() {
@@ -206,16 +234,13 @@
 		}
 
 		function animate() {
-
 			requestAnimationFrame(animate);
-
 			controls.update();
 			stats.update();
 
 			moveNodes();
 
 			renderer.render(scene, camera);
-
 		}
 
 	</script>
