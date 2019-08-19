@@ -8,10 +8,15 @@
 	<link type="text/css" rel="stylesheet" href="../main.css">
 	<style>
 		html,
-		body {
+		body,
+		#content {
 			width: 100%;
 			height: 100%;
 			overflow: hidden;
+		}
+
+		#content {
+			background-image: url('images/bg.jpeg')
 		}
 
 		a {
@@ -23,10 +28,16 @@
 </head>
 
 <body>
+	<!--
 	<div id="info">
 		<a href="http://threejs.org" target="_blank" rel="noopener">three.js</a> webgl - buffergeometry constructed from
 		geometry<br />
 		by <a target="_blank" href="http://callum.com">Callum Prentice</a>
+	</div>
+	-->
+
+	<div id="content">
+
 	</div>
 
 	<script type="x-shader/x-vertex" id="vertexshader">
@@ -62,16 +73,18 @@
 		var jsonData;
 		var geomNodes, geomLinks;
 		var moveSteps = 80, currentSteps = 0;
+		var nodeIndex = -1;
 
 		init();
 		animate();
 
 		// 初始化
 		function init() {
-			renderer = new THREE.WebGLRenderer({ antialias: true });
+			renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 			renderer.setPixelRatio(window.devicePixelRatio);
-			renderer.setSize(window.innerWidth, window.innerHeight);
-			document.body.appendChild(renderer.domElement);
+			renderer.setSize(window.innerWidth, window.innerHeight);// renderer.setClearAlpha(0.0);// renderer.setClearColor(0xff0000, 1.0);
+			document.getElementById('content').appendChild(renderer.domElement);
+			//document.body.appendChild(renderer.domElement);
 
 			scene = new THREE.Scene();
 
@@ -80,7 +93,7 @@
 			scene.add(camera);
 
 			controls = new TrackballControls(camera, renderer.domElement);
-			controls.minDistance = 100.0;
+			controls.minDistance = 10.0;
 			controls.maxDistance = 800.0;
 			controls.dynamicDampingFactor = 0.1;
 
@@ -98,14 +111,17 @@
 
 			mouse = new THREE.Vector2();
 			raycaster = new THREE.Raycaster();
-			// document.addEventListener('mousemove', onDocumentMouseUp, false);
+			document.addEventListener('mousemove', onDocumentMouseMove, false);
 			document.addEventListener('mouseup', onDocumentMouseUp, false);
 		}
-
+		var p = new THREE.Vector3(0, 0, 0);
 		// 飞行
 		function flyTo(x, y, z) {
+			// controls.target.set(x, y, z);
+			// camera.position.set(x, y, z + 10);
+
 			const duration = 3000;
-			const distance = 100;
+			const distance = 50;
 			const distRatio = 1 + distance / Math.hypot(x, y, z);
 			const finalPos = { x: x * distRatio, y: y * distRatio, z: z * distRatio };
 			const camPos = Object.assign({}, camera.position);
@@ -120,37 +136,73 @@
 				})
 				.start();
 
-			// camera.lookAt(new Three.Vector3(x, y, z));
-			// const camLookAt = getLookAt();
-			// const finalLookAt = new three.Vector3(x, y, z);
-			// Face direction in 1/3rd of time
-			// new TWEEN.Tween(camLookAt)
-			// 	.to(finalLookAt, duration / 3)
-			// 	.easing(TWEEN.Easing.Quadratic.Out)
-			// 	.onUpdate((pos) => {
-			// 		camera.lookAt(pos);
-			// 	})
-			// 	.start();
+			const camLookAt = getLookAt();
+			const finalLookAt = new THREE.Vector3(x, y, z);
+			// Face direction in 1 / 3rd of time
+			new TWEEN.Tween(camLookAt)
+				.to(finalLookAt, duration / 3)
+				.easing(TWEEN.Easing.Quadratic.Out)
+				.onUpdate((pos) => {
+					controls.target.set(pos.x, pos.y, pos.z);
+				})
+				.start();
 		}
 
 		// 鼠标拾取
 		function onDocumentMouseUp(event) {
+			if (nodeIndex >= 0) {
+				let i = nodeIndex;
+				var nodePos = geomNodes.geometry.attributes.position;
+				flyTo(nodePos.array[i * 3], nodePos.array[i * 3 + 1], nodePos.array[i * 3 + 2]);
+			}
+			// if (!geomNodes) return;
+			// event.preventDefault();
+			// mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+			// mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+			// raycaster.setFromCamera(mouse, camera);
+			// var intersects = raycaster.intersectObject(geomNodes, false);
+			// if (intersects.length > 0) {
+			// 	let i = intersects[0].index;
+			// 	var nodePos = geomNodes.geometry.attributes.position;
+			// 	flyTo(nodePos.array[i * 3], nodePos.array[i * 3 + 1], nodePos.array[i * 3 + 2]);
+			// }
+		}
+
+		// 鼠标移动
+		function onDocumentMouseMove(event) {
 			if (!geomNodes) return;
 			event.preventDefault();
 			mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
 			mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
 			raycaster.setFromCamera(mouse, camera);
 			var intersects = raycaster.intersectObject(geomNodes, false);
+			let index = -1;
 			if (intersects.length > 0) {
-				let i = intersects[0].index;
-				var nodePos = geomNodes.geometry.attributes.position;
-				flyTo(nodePos.array[i], nodePos.array[i + 1], nodePos.array[i + 2]);
+				index = intersects[0].index;
+			}
+			let color = new THREE.Color(0xffffff);// 高亮色
+			if (index != nodeIndex) {
+				let nodeColor = geomNodes.geometry.attributes.customColor;
+				// 恢复颜色
+				if (nodeIndex >= 0) {
+					let node = jsonData.nodes[nodeIndex];
+					color.setStyle(getNodeColor(node.type));
+					color.toArray(nodeColor.array, nodeIndex * 3);
+					nodeColor.needsUpdate = true;
+				}
+				// 高亮显示
+				if (index >= 0) {
+					color = new THREE.Color(0xffffff);
+					color.toArray(nodeColor.array, index * 3);
+					nodeColor.needsUpdate = true;
+				}
+				nodeIndex = index;
 			}
 		}
 
 		function getLookAt() {
 			return Object.assign(
-				(new three.Vector3(0, 0, -1000))
+				(new THREE.Vector3(0, 0, -1000))
 					.applyQuaternion(camera.quaternion)
 					.add(camera.position)
 			);
@@ -217,7 +269,8 @@
 			var material = new THREE.ShaderMaterial({
 				uniforms: {
 					color: { value: new THREE.Color(0xffffff) },
-					pointTexture: { value: new THREE.TextureLoader().load("../textures/lensflare/lensflare0.png") }
+					pointTexture: { value: new THREE.TextureLoader().load("../textures/sprites/spark1.png") }
+					// pointTexture: { value: new THREE.TextureLoader().load("../textures/lensflare/lensflare0.png") }
 				},
 				vertexShader: document.getElementById('vertexshader').textContent,
 				fragmentShader: document.getElementById('fragmentshader').textContent,
