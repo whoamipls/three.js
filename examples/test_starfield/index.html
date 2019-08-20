@@ -2,7 +2,7 @@
 <html lang="en">
 
 <head>
-	<title>three.js webgl - buffer geometry constructed from geometry</title>
+	<title>星空</title>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 	<link type="text/css" rel="stylesheet" href="../main.css">
@@ -316,6 +316,7 @@
 				linkPos.array[i * 2 * 3 + 5] = nodePos.array[k * 3 + 2];
 			}
 			linkPos.needsUpdate = true;
+			geomLinks.geometry.computeBoundingSphere();// 不加这句某些角度线不显示
 		}
 
 		function onWindowResize() {
