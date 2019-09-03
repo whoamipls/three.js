@@ -24,6 +24,8 @@
 		}
 	</style>
 	<script src="./js/config.js"></script>
+	<script src="../../build/three.min.js"></script>
+	<script src="./js/animationLine.js"></script>
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/17.1.1/Tween.min.js"></script>
 </head>
 
@@ -63,7 +65,7 @@
 	</script>
 
 	<script type="module">
-		import * as THREE from '../../build/three.module.js';
+		// import * as THREE from '../../build/three.module.js';
 		import Stats from '../jsm/libs/stats.module.js';
 		import { TrackballControls } from '../jsm/controls/TrackballControls.js';
 
@@ -73,7 +75,7 @@
 		var jsonData;
 		var geomNodes, geomLinks;
 		var moveSteps = 80, currentSteps = 0;
-		var nodeIndex = -1;
+		var nodeOver = -1, nodeClick = -1;
 
 		init();
 		animate();
@@ -114,12 +116,9 @@
 			document.addEventListener('mousemove', onDocumentMouseMove, false);
 			document.addEventListener('mouseup', onDocumentMouseUp, false);
 		}
-		var p = new THREE.Vector3(0, 0, 0);
-		// 飞行
-		function flyTo(x, y, z) {
-			// controls.target.set(x, y, z);
-			// camera.position.set(x, y, z + 10);
 
+		// 飞行
+		function flyTo(x, y, z, complete) {
 			const duration = 3000;
 			const distance = 50;
 			const distRatio = 1 + distance / Math.hypot(x, y, z);
@@ -134,8 +133,10 @@
 					if (y !== undefined) camera.position.y = y;
 					if (z !== undefined) camera.position.z = z;
 				})
+				.onComplete(() => {
+					if (complete) complete();
+				})
 				.start();
-
 			const camLookAt = getLookAt();
 			const finalLookAt = new THREE.Vector3(x, y, z);
 			// Face direction in 1 / 3rd of time
@@ -148,13 +149,42 @@
 				.start();
 		}
 
+		// 轨迹
+		function track() {
+			if (nodeClick >= 0) {
+				let node = jsonData.nodes[nodeClick];
+				if (node.children) {
+					let lines = [];
+					node.children.forEach(child => {
+						lines.push({
+							start: new THREE.Vector3(child.x, child.y, child.z),
+							end: new THREE.Vector3(node.x, node.y, node.z)
+						});
+					});
+					initLines(scene, lines);
+				}
+			}
+		}
+
 		// 鼠标拾取
 		function onDocumentMouseUp(event) {
-			if (nodeIndex >= 0) {
-				let i = nodeIndex;
-				var nodePos = geomNodes.geometry.attributes.position;
-				flyTo(nodePos.array[i * 3], nodePos.array[i * 3 + 1], nodePos.array[i * 3 + 2]);
+			if (nodeOver >= 0) {
+				nodeClick = nodeOver;
+				let node = jsonData.nodes[nodeClick];
+				// 飞行
+				flyTo(node.x, node.y, node.z, () => {
+					// 轨迹
+					track();
+				});
+				clearLines(scene);
 			}
+
+			// if (nodeOver >= 0) {
+			// 	let i = nodeOver;
+			// 	var nodePos = geomNodes.geometry.attributes.position;
+			// 	flyTo(nodePos.array[i * 3], nodePos.array[i * 3 + 1], nodePos.array[i * 3 + 2]);
+			// }
+
 			// if (!geomNodes) return;
 			// event.preventDefault();
 			// mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -181,13 +211,13 @@
 				index = intersects[0].index;
 			}
 			let color = new THREE.Color(0xffffff);// 高亮色
-			if (index != nodeIndex) {
+			if (index != nodeOver) {
 				let nodeColor = geomNodes.geometry.attributes.customColor;
 				// 恢复颜色
-				if (nodeIndex >= 0) {
-					let node = jsonData.nodes[nodeIndex];
+				if (nodeOver >= 0) {
+					let node = jsonData.nodes[nodeOver];
 					color.setStyle(getNodeColor(node.type));
-					color.toArray(nodeColor.array, nodeIndex * 3);
+					color.toArray(nodeColor.array, nodeOver * 3);
 					nodeColor.needsUpdate = true;
 				}
 				// 高亮显示
@@ -196,7 +226,7 @@
 					color.toArray(nodeColor.array, index * 3);
 					nodeColor.needsUpdate = true;
 				}
-				nodeIndex = index;
+				nodeOver = index;
 			}
 		}
 
@@ -225,9 +255,11 @@
 			var vertex = new THREE.Vector3(0, 0, 0);
 			var positions = new Float32Array(amount * 2 * 3);
 			for (let i = 0; i < amount; i++) {
-				// let link = jsonData.links[i];
-				// let source = jsonData.nodes[link.source];
-				// let target = jsonData.nodes[link.target];
+				let link = jsonData.links[i];
+				let source = jsonData.nodes[link.source];
+				let target = jsonData.nodes[link.target];
+				if (!target.children) target.children = [];
+				target.children.push(source);
 				// vertex.x = source.x;
 				// vertex.y = source.y;
 				// vertex.z = source.z;

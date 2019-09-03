@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>朵朵视野-Three.js实现世界地图球体迁徙图</title>
+	<link href="./css/index.css" rel="stylesheet">
+	<script type="text/javascript" src="./js/jquery.min.js"></script>
+	<script type="text/javascript" src="./js/three.min.js"></script>
+	<script type="text/javascript" src="./js/THREE.MeshLine.js"></script>
+	<script type="text/javascript" src="./js/OrbitControls.js"></script>
+</head>
+
+<body>
+	<ul id="three-lite">
+		<li>北京 -> 莫斯科</li>
+		<li>北京 -> 华盛顿</li>
+		<li>北京 -> 堪培拉</li>
+		<li>北京 -> 巴西利亚</li>
+		<li>北京 -> 开普敦</li>
+		<li>北京 -> 伦敦</li>
+		<li>北京 -> 东京</li>
+		<li>北京 -> 首尔</li>
+		<li>北京 -> 新德里</li>
+		<li>北京 -> 曼谷</li>
+		<li>北京 -> 巴黎</li>
+		<li>北京 -> 开罗</li>
+		<li>北京 -> 惠灵顿</li>
+		<li>北京 -> 渥太华</li>
+	</ul>
+	<div id="three-frame"></div>
+</body>
+<script>
+	// 渲染器
+	var renderer = null;
+	// 相机
+	var camera = null;
+	// 场景
+	var scene = null;
+	// 包裹画布dom
+	var dom = document.getElementById("three-frame");
+	// 地球对象
+	var earthBall = null;
+	// 标记点集合对象
+	var marking = null;
+	// 标记位置对象
+	var markingLine = null;
+	// 地球大小
+	var earthBallSize = 30;
+	// 地球贴图
+	var earthImg = './image/earth_bg.jpg';
+	// 迁徙路径分段数
+	var metapNum = 150;
+	// 迁徙路径标记分段数
+	var markingNum = 50;
+	// 轨迹线条颜色
+	var metapLineColor = 'rgb(27, 180, 176)';
+	// 球上标记点大小
+	var dotWidth = 0.5;
+	// 球上标记点颜色
+	var dotColor = '#1bb4b0';
+	// 轨迹上运动的球大小
+	var slideBallSize = 0.2;
+	// 轨迹上运动的球颜色
+	var slideBallColor = 'rgb(0, 255, 255)';//'rgb(27, 180, 176)';
+
+	// 获取标记地点信息
+	var getMarkingLine = function () {
+		$.ajax({
+			type: "GET", //提交方式 
+			url: "./code/marking-line.json",
+			async: false,
+			success: function (response) {//返回数据根据结果进行相应的处理 
+				markingLine = response.lines;
+			}
+		})
+	}
+
+	// 添加轨迹函数
+	var addLine = function (v1, v2) {
+		// 绘制线段
+		var curve = new THREE.LineCurve3(new THREE.Vector3(v1[0], v1[1], v1[2]), new THREE.Vector3(v2[0], v2[1], v2[2]));
+		var geometry = new THREE.Geometry();
+		geometry.vertices = curve.getPoints(2);//geometry.vertices.push(v0, v3);
+		var line = new MeshLine();
+		line.setGeometry(geometry);
+		var material = new MeshLineMaterial({
+			color: metapLineColor,
+			lineWidth: 0.1,
+			transparent: true,
+			opacity: 1
+		})
+		return {
+			curve: curve,
+			lineMesh: new THREE.Mesh(line.geometry, material)
+		}
+	}
+
+	// 执行函数
+	var render = function () {
+		renderer.render(scene, camera);
+		orbitcontrols.update();
+		requestAnimationFrame(render);
+	}
+	// 初始化函数
+	var initThree = function () {
+		// 初始化场景
+		scene = new THREE.Scene();
+		// 初始化相机
+		camera = new THREE.PerspectiveCamera(20, dom.clientWidth / dom.clientHeight, 1, 100000);
+		// 设置相机位置
+		camera.position.set(0, 0, 200);
+		renderer = new THREE.WebGLRenderer({
+			alpha: true,
+			antialias: true
+		});
+		// 设置窗口尺寸
+		renderer.setSize(dom.clientWidth, dom.clientHeight);
+		// 初始化控制器
+		orbitcontrols = new THREE.OrbitControls(camera, renderer.domElement);
+		dom.appendChild(renderer.domElement);
+		// 设置光线
+		scene.add(new THREE.HemisphereLight('#ffffff', '#ffffff', 1));
+		// 线条对象集合
+		var animateDots = [];
+		var groupLines = new THREE.Group();
+		markingLine.forEach((item) => {
+			var line = addLine(item.start, item.end);
+			groupLines.add(line.lineMesh);
+			animateDots.push(line.curve.getPoints(metapNum));
+		});
+		scene.add(groupLines);
+		// 线上滑动的小球
+		var aGroup = new THREE.Group();
+		for (var i = 0; i < animateDots.length; i++) {
+			for (var j = 0; j < markingNum; j++) {
+				var aGeo = new THREE.SphereGeometry(slideBallSize, 10, 10);
+				var aMaterial = new THREE.MeshBasicMaterial({
+					color: slideBallColor,
+					transparent: true,
+					opacity: 1 - j * 0.02
+				})
+				var aMesh = new THREE.Mesh(aGeo, aMaterial);
+				aGroup.add(aMesh);
+			}
+		}
+		var vIndex = 0;
+		var firstBool = true;
+		function animationLine() {
+			aGroup.children.forEach(function (elem, index) {
+				var _index = parseInt(index / markingNum);
+				var index2 = index - markingNum * _index;
+				var _vIndex = 0;
+				if (firstBool) {
+					_vIndex = vIndex - index2 % markingNum >= 0 ? vIndex - index2 % markingNum : 0;
+				} else {
+					_vIndex = vIndex - index2 % markingNum >= 0 ? vIndex - index2 % markingNum : metapNum + vIndex - index2;
+				}
+				var v = animateDots[_index][_vIndex];
+				elem.position.set(v.x, v.y, v.z);
+			})
+			vIndex++;
+			if (vIndex > metapNum) {
+				vIndex = 0;
+			}
+			if (vIndex == metapNum && firstBool) {
+				firstBool = false;
+			}
+			requestAnimationFrame(animationLine);
+		}
+		scene.add(aGroup);
+		animationLine();
+		// 渲染
+		render();
+	}
+	// 页面资源加载完全执行函数
+	window.onload = function () {
+		getMarkingLine();
+		initThree();
+	}
+	// 窗口resize事件
+	window.onresize = function () {
+		// 重新初始化尺寸
+		camera.aspect = dom.clientWidth / dom.clientHeight;
+		camera.updateProjectionMatrix();
+		renderer.setSize(dom.clientWidth, dom.clientHeight)
+	}
+</script>
+
+</html>
