@@ -6,8 +6,12 @@ var markingNum = 50;
 var slideBallSize = 0.2;
 // 轨迹上运动的球颜色
 var slideBallColor = 'rgb(0, 255, 255)';//'rgb(27, 180, 176)';
-// 轨迹球
+// 轨迹球分组
 var ballGroup = null;
+// 球几何信息
+var markingGeo = null;
+// 球材质信息
+var markingMats = null;
 
 // 初始化数据
 var initLines = function (scene, lines) {
@@ -21,15 +25,21 @@ var initLines = function (scene, lines) {
     });
     // 线上滑动的小球
     ballGroup = new THREE.Group();
-    for (var i = 0; i < animateDots.length; i++) {
+    if (markingGeo == null) markingGeo = new THREE.SphereGeometry(slideBallSize, 10, 10);
+    if (markingMats == null) {
+        markingMats = [];
         for (var j = 0; j < markingNum; j++) {
-            var aGeo = new THREE.SphereGeometry(slideBallSize, 10, 10);
-            var aMaterial = new THREE.MeshBasicMaterial({
+            var mat = new THREE.MeshBasicMaterial({
                 color: slideBallColor,
                 transparent: true,
                 opacity: 1 - j / markingNum //opacity: 1 - j * 0.02
             })
-            var aMesh = new THREE.Mesh(aGeo, aMaterial);
+            markingMats.push(mat);
+        }
+    }
+    for (var i = 0; i < animateDots.length; i++) {
+        for (var j = 0; j < markingNum; j++) {
+            var aMesh = new THREE.Mesh(markingGeo, markingMats[j]);
             ballGroup.add(aMesh);
         }
     }
@@ -46,13 +56,6 @@ var initLines = function (scene, lines) {
             } else {
                 _vIndex = vIndex - index2 % markingNum >= 0 ? vIndex - index2 % markingNum : metapNum + vIndex - index2;
             }
-            // if (!!animateDots) {
-            //     var dots = animateDots[_index];
-            //     if (!!dots) {
-            //         var v = dots[_vIndex];
-            //         elem.position.set(v.x, v.y, v.z);
-            //     }
-            // }
             var v = animateDots[_index][_vIndex];
             elem.position.set(v.x, v.y, v.z);
         })
@@ -67,6 +70,22 @@ var initLines = function (scene, lines) {
     }
     scene.add(ballGroup);
     animationLine();
+    // 测试海量模型
+    // var geometry = new THREE.BoxBufferGeometry(100, 100, 100);
+    // var material = new THREE.MeshNormalMaterial();
+    // group = new THREE.Group();
+    // for (var i = 0; i < 1000; i++) {
+    //     var mesh = new THREE.Mesh(geometry, material);
+    //     mesh.position.x = Math.random() * 2000 - 1000;
+    //     mesh.position.y = Math.random() * 2000 - 1000;
+    //     mesh.position.z = Math.random() * 2000 - 1000;
+    //     mesh.rotation.x = Math.random() * 2 * Math.PI;
+    //     mesh.rotation.y = Math.random() * 2 * Math.PI;
+    //     mesh.matrixAutoUpdate = false;
+    //     mesh.updateMatrix();
+    //     group.add(mesh);
+    // }
+    // scene.add(group);
 }
 
 // 清空动态球
