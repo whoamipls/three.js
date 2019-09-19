@@ -125,11 +125,10 @@
 				activeSystem: g_Systems[0],// 左侧菜单活动项
 				filters: g_Filters,// 底部菜单
 				activeFilter: null,// 底部菜单活动项
-				graph: null,// 3D图形
 				searchText: '',// 查询字符串
 				infoBox: { show: false, content: "hello" },// 是否显示信息框
-				initData: null,// 初始数据
-				filtData: null,// 过滤数据
+				// initData: null,// 初始数据
+				// filtData: null,// 过滤数据
 			},
 			methods: {
 				// 初始化
@@ -152,7 +151,7 @@
 					this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 					this.camera.add(new THREE.PointLight(0xffffff, 0.7));
 					// 场景
-					this.createScene();
+					this.createScene('./datasets/blocks.json');//
 					// 事件
 					this.mouse = new THREE.Vector2();
 					this.raycaster = new THREE.Raycaster();
@@ -160,14 +159,40 @@
 					document.addEventListener('mousemove', this.onDocumentMouseMove, false);
 					document.addEventListener('mouseup', this.onDocumentMouseUp, false);
 				},
+				// 重置场景
+				resetScene() {
+					// 清空点、边
+					let count = this.scene.children.length;
+					for (let i = count - 1; i >= 0; i--) {
+						let child = this.scene.children[i];
+						if (child instanceof THREE.Points || child instanceof THREE.LineSegments) {
+							this.scene.remove(child);
+						}
+					}
+					this.geomNodes = null;
+					this.geomLinks = null;
+					this.activeFilter = null;
+					// 清空动画线
+					clearLines(this.scene);
+					// 重置相机
+					this.camera.position = new THREE.Vector3(0, 0, -500);
+					this.controls.target.set(0, 0, 0);
+				},
+				// 重置参数
+				resetParam: function () {
+					this.currentSteps = 0;
+					this.infoBox.show = false;
+				},
 				// 创建场景
-				createScene: function () {
-					fetch('./datasets/blocks.json').then(r => {
+				createScene: function (jsonUrl) {
+					this.resetScene();
+					fetch(jsonUrl).then(r => {
 						return r.json();
 					}).then(json => {
 						this.jsonData = json;
 						this.createNodes();
 						this.createLinks();
+						this.resetParam();
 					});
 				},
 				// 创建节点
@@ -394,6 +419,14 @@
 						}
 					}
 				},
+				// 单击左侧菜单
+				systemMenuClick: function (sys) {
+					if (this.activeSystem == sys) return;
+					this.activeSystem = sys;
+					if (sys.value) {
+						this.createScene(sys.value);
+					}
+				},
 				// 单击底部菜单
 				filterMenuClick: function (val) {
 					this.activeFilter = this.activeFilter == val ? null : val;
@@ -424,11 +457,13 @@
 				isNodeIgnore: function (node) {
 					return this.activeFilter && this.activeFilter.value != node.type;
 				},
+				// 窗口变化
 				onWindowResize: function () {
 					this.camera.aspect = window.innerWidth / window.innerHeight;
 					this.camera.updateProjectionMatrix();
 					this.renderer.setSize(window.innerWidth, window.innerHeight);
 				},
+				// 帧动画
 				animate: function (time) {
 					requestAnimationFrame(this.animate);
 					this.controls.update();
