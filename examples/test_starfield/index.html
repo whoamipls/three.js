@@ -333,7 +333,7 @@
 				searchNode: function () {
 					let node = this.jsonData.nodes.find(node => {
 						if (this.isNodeIgnore(node)) return false;
-						return node.user.indexOf(this.searchText) >= 0
+						return node.id.toString().indexOf(this.searchText) >= 0
 					});
 					if (node) {
 						this.selectNode(node);
@@ -361,7 +361,7 @@
 				// 显示信息面板
 				showInfoBox: function (node) {
 					this.infoBox.node = node;
-					this.infoBox.content = `${node.user}: ${node.description}`;
+					this.infoBox.content = `${node.id}: ${node.description}`;
 					this.infoBox.show = true;
 				},
 				// 飞行

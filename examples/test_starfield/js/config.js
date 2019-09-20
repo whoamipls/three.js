@@ -1,8 +1,8 @@
 let g_Systems = [
     { name: '人工智能', value: './datasets/blocks.json' },
     { name: '区块链', value: './datasets/blocks.json' },
-    { name: '光电空间' },
-    { name: '海洋科技' },
+    { name: '光电空间', value: './datasets/create/data/temp.json' },
+    { name: '海洋科技', value: './datasets/create/data/temp1.json' },
     { name: '新能源' },
     { name: '核电' },
     { name: '生命与健康' },
