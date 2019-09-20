@@ -118,7 +118,6 @@
 				moveSteps: 80,
 				currentSteps: 0,
 				overIndex: -1,
-				clickIndex: -1,
 				highlightColor: '#ffffff',// 高亮色
 				ignoreColor: '#111111',// 忽略色
 				systems: g_Systems,// 左侧菜单
@@ -127,8 +126,6 @@
 				activeFilter: null,// 底部菜单活动项
 				searchText: '',// 查询字符串
 				infoBox: { show: false, content: "hello" },// 是否显示信息框
-				// initData: null,// 初始数据
-				// filtData: null,// 过滤数据
 			},
 			methods: {
 				// 初始化
@@ -319,8 +316,7 @@
 				// 鼠标拾取
 				onDocumentMouseUp: function (event) {
 					if (this.overIndex >= 0) {
-						this.clickIndex = this.overIndex;
-						let node = this.getNode(this.clickIndex);
+						let node = this.getNode(this.overIndex);
 						this.selectNode(node);
 					}
 				},
@@ -348,7 +344,7 @@
 				// 选择节点
 				selectNode: function (node) {
 					// 飞行
-					this.flyTo(node.x, node.y, node.z, this.track);
+					this.flyTo(node, this.track);
 					clearLines(this.scene);
 					// 面板
 					this.showInfoBox(node);
@@ -365,7 +361,8 @@
 					this.infoBox.show = true;
 				},
 				// 飞行
-				flyTo: function (x, y, z, complete) {
+				flyTo: function (node, complete) {
+					const x = node.x, y = node.y, z = node.z;
 					const duration = 3000;
 					const distance = 50;
 					const distRatio = 1 + distance / Math.hypot(x, y, z);
@@ -381,7 +378,7 @@
 							if (z !== undefined) this.camera.position.z = z;
 						})
 						.onComplete(() => {
-							if (complete) complete();
+							if (complete) complete(node);
 						})
 						.start();
 					const camLookAt = this.getLookAt();
@@ -404,9 +401,8 @@
 					);
 				},
 				// 轨迹
-				track: function () {
-					if (this.clickIndex >= 0) {
-						let node = this.getNode(this.clickIndex);
+				track: function (node) {
+					if (node) {
 						if (node.children) {
 							let lines = [];
 							node.children.forEach(child => {
@@ -436,22 +432,22 @@
 				updateNodeColor: function (index) {
 					let node = this.getNode(index);
 					if (!node) return;
-					let nodeColor = this.geomNodes.geometry.attributes.customColor;
+					let attri = this.geomNodes.geometry.attributes.customColor;
 					let color = new THREE.Color();
 					color.setStyle(this.getNodeColor(node));
-					color.toArray(nodeColor.array, index * 3);
-					nodeColor.needsUpdate = true;
+					color.toArray(attri.array, index * 3);
+					attri.needsUpdate = true;
 				},
 				// 更新所有点颜色
 				updateNodesColor: function () {
-					let nodeColor = this.geomNodes.geometry.attributes.customColor;
+					let attri = this.geomNodes.geometry.attributes.customColor;
 					let color = new THREE.Color();
 					for (let i = 0; i < this.jsonData.nodes.length; i++) {
 						let node = this.jsonData.nodes[i];
 						color.setStyle(this.getNodeColor(node));
-						color.toArray(nodeColor.array, i * 3);
+						color.toArray(attri.array, i * 3);
 					}
-					nodeColor.needsUpdate = true;
+					attri.needsUpdate = true;
 				},
 				// 点是否忽略
 				isNodeIgnore: function (node) {
