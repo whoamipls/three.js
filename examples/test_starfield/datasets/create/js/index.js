@@ -2,7 +2,7 @@ const Graph = ForceGraph3D()
     (document.getElementById("3d-graph"));
 
 let curDataSetIdx,
-    numDim = 2;
+    numDim = 3;
 
 const dataSets = getGraphDataSets();
 
@@ -24,3 +24,8 @@ const toggleDimensions = function (numDimensions) {
     numDim = numDimensions;
     Graph.numDimensions(numDim);
 };
+
+// copy data
+const copyData = function () {
+    return copyGraphDataSets(Graph);
+}

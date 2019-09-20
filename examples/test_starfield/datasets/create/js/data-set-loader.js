@@ -4,7 +4,7 @@ function getGraphDataSets() {
         Graph
             .nodeLabel('id')
             .nodeAutoColorBy('group')
-            .jsonUrl('.miserables.json');
+            .jsonUrl('./data/.miserables.json');
     };
     loadMiserables.description = "<em>Les Miserables</em> data (<a href='https://bl.ocks.org/mbostock/4062045'>4062045</a>)";
 
@@ -14,14 +14,14 @@ function getGraphDataSets() {
         Graph
             .nodeLabel(node => `${node.user ? node.user + ': ' : ''}${node.description || node.id}`)
             .nodeAutoColorBy('user')
-            .jsonUrl('.blocks.json');
+            .jsonUrl('./data/.blocks.json');
     };
     loadBlocks.description = "<em>Blocks</em> data (<a href='https://bl.ocks.org/mbostock/afecf1ce04644ad9036ca146d2084895'>afecf1ce04644ad9036ca146d2084895</a>)";
 
     //
 
     const loadD3Dependencies = function (Graph) {
-        fetch('.d3.csv').then(r => r.text()).then(d3.csvParse).then(data => {
+        fetch('./data/.d3.csv').then(r => r.text()).then(d3.csvParse).then(data => {
             const nodes = [], links = [];
             data.forEach(({ size, path }) => {
                 const levels = path.split('/'),
@@ -54,5 +54,5 @@ function getGraphDataSets() {
 
     //
 
-    return [loadMiserables, loadBlocks, loadD3Dependencies];
+    return [loadBlocks, loadMiserables, loadD3Dependencies];
 }

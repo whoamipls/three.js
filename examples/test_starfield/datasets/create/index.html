@@ -1,10 +1,13 @@
 <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <script src="//unpkg.com/3d-force-graph@1"></script>
     <script src="//unpkg.com/d3-dsv"></script>
 
-    <script src="data-set-loader.js"></script>
+    <script src="js/data-set-loader.js"></script>
+    <script src="js/data-set-copy.js"></script>
+    <script src="js/clipboard.min.js"></script>
 
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
@@ -13,13 +16,30 @@
     <div class="dimensions-selector">
         Dimensions:
         <input type="radio" name="num-dimensions" onChange="toggleDimensions(1)"> 1D
-        <input type="radio" name="num-dimensions" onChange="toggleDimensions(2)" checked> 2D
-        <input type="radio" name="num-dimensions" onChange="toggleDimensions(3)"> 3D
+        <input type="radio" name="num-dimensions" onChange="toggleDimensions(2)"> 2D
+        <input type="radio" name="num-dimensions" onChange="toggleDimensions(3)" checked> 3D
     </div>
     <div class="graph-data">
         <span id="graph-data-description"></span>
-        <button class="toggle-data-btn" onClick="toggleData()">Show me something else</button>
+        <button class="toggle-data-btn" onClick="toggleData()" disabled>Show me something else</button>
+        <button class="copy-data-btn">Copy</button>
     </div>
 
-    <script src="index.js"></script>
+    <script src="js/index.js"></script>
+
+    <script>
+        var clipboard = new Clipboard('.copy-data-btn', {
+            text: () => {
+                let content = JSON.stringify(copyData());
+                return content;
+            }
+        });
+        clipboard.on('success', function (e) {
+            alert('数据已复制到剪贴板！');
+        });
+
+        clipboard.on('error', function (e) {
+            alert('数据复制失败！');
+        });
+    </script>
 </body>
