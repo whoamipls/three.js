@@ -151,7 +151,7 @@
 					this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 					this.camera.add(new THREE.PointLight(0xffffff, 0.7));
 					// 场景
-					this.createScene('./datasets/blocks.json');//
+					this.createScene(this.activeSystem.value);//
 					// 事件
 					this.mouse = new THREE.Vector2();
 					this.raycaster = new THREE.Raycaster();
