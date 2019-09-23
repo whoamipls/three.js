@@ -136,13 +136,13 @@
 					document.getElementById('content').appendChild(this.renderer.domElement);
 					this.scene = new THREE.Scene();
 					// 相机
-					this.camera = new THREE.PerspectiveCamera(45.0, window.innerWidth / window.innerHeight, 1, 1500.0);
+					this.camera = new THREE.PerspectiveCamera(45.0, window.innerWidth / window.innerHeight, 1, 2000.0);//1500.0);
 					this.camera.position.z = 480.0;
 					this.scene.add(this.camera);
 					// 控制
 					this.controls = new TrackballControls(this.camera, this.renderer.domElement);
 					this.controls.minDistance = 10.0;
-					this.controls.maxDistance = 800.0;
+					this.controls.maxDistance = 2000.0;//800.0;
 					this.controls.dynamicDampingFactor = 0.1;
 					// 灯光
 					this.scene.add(new THREE.AmbientLight(0xffffff, 0.2));
